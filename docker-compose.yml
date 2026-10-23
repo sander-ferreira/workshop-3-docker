@@ -56,6 +56,10 @@ services:
       DB_PASSWORD: ${MYSQL_PASSWORD}
     expose:
       - "5000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=PathPrefix(`/api`)"
+      - "traefik.http.services.api.loadbalancer.server.port=5000"
     depends_on:
       migrations:
         condition: service_completed_successfully
@@ -70,6 +74,16 @@ services:
     restart: unless-stopped
     expose:
       - "80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.admin.rule=Path(`/admin`) || PathPrefix(`/admin/`)"
+      # /admin -> /admin/ (sinon style.css et app.js seraient demandés à la racine), puis retrait du préfixe
+      - "traefik.http.routers.admin.middlewares=admin-slash,admin-strip"
+      - "traefik.http.middlewares.admin-slash.redirectregex.regex=^(.*)/admin$$"
+      - "traefik.http.middlewares.admin-slash.redirectregex.replacement=$${1}/admin/"
+      - "traefik.http.middlewares.admin-slash.redirectregex.permanent=true"
+      - "traefik.http.middlewares.admin-strip.stripprefix.prefixes=/admin"
+      - "traefik.http.services.admin.loadbalancer.server.port=80"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
       interval: 30s
@@ -85,6 +99,10 @@ services:
     restart: unless-stopped
     expose:
       - "80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.users.rule=PathPrefix(`/`)"
+      - "traefik.http.services.users.loadbalancer.server.port=80"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
       interval: 30s
@@ -94,14 +112,23 @@ services:
       - frontend
 
   reverse_proxy:
-    build: ./reverse_proxy
-    image: workshop3/reverse-proxy:1.0.0
+    image: traefik:v3.7.16
     container_name: reverse_proxy
     restart: unless-stopped
+    command:
+      - --entrypoints.web.address=:80
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=workshop3_frontend
+      - --ping=true
+      - --ping.entrypoint=web
+      - --accesslog=true
     ports:
       - "80:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/ping"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -116,9 +143,7 @@ services:
       - frontend
 
 networks:
-  # Réseau exposé au reverse-proxy : fronts + API
   frontend:
-  # Réseau de la base : sans accès à internet, injoignable depuis le proxy et les fronts
   backend:
     internal: true
 
