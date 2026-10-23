@@ -14,7 +14,7 @@ FIELDS = {"numero_rue": 10, "nom_rue": 255, "ville": 100, "code_postal": 5}
 
 
 def validate(data):
-    """Vérifie le corps JSON envoyé par le front. Renvoie (adresse, erreurs)."""
+    """Vérifie le JSON envoyé par le front et Renvoie (adresse, erreurs)."""
     if not isinstance(data, dict):
         return None, {"body": "Un objet JSON est attendu"}
 
