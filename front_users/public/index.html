@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Liste des adresses</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="conteneur">
+    <h1>Liste des adresses</h1>
+
+    <div class="recherche">
+      <label for="recherche">Rechercher une ville :</label>
+      <input id="recherche" type="text">
+      <span id="compteur"></span>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>Numéro</th><th>Rue</th><th>Code postal</th><th>Ville</th></tr>
+      </thead>
+      <tbody id="liste"></tbody>
+    </table>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

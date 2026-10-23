@@ -1,0 +1,132 @@
+# Workshop 3 - Architecture microservices : gestion d'adresses
+#
+#   navigateur ──:80──> reverse_proxy ─┬─ /        -> front_users
+#                                      ├─ /admin/  -> front_admin
+#                                      └─ /api/    -> api ──> db (MySQL)
+#
+# Seul reverse_proxy publie un port sur la machine hôte (80).
+# Les variables ${...} viennent du fichier .env (lu automatiquement par Compose).
+
+name: workshop3
+
+services:
+  db:
+    image: mysql:8.4.13
+    container_name: db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      # $$ : la variable est lue dans le conteneur, pas par Compose
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks:
+      - backend
+
+  # Applique les fichiers SQL de ./migrations puis s'arrête
+  migrations:
+    image: flyway/flyway:13.11.1
+    container_name: migrations
+    command: migrate
+    environment:
+      FLYWAY_URL: jdbc:mysql://db:3306/${MYSQL_DATABASE}?allowPublicKeyRetrieval=true&useSSL=false
+      FLYWAY_USER: root
+      FLYWAY_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+    volumes:
+      - ./migrations:/flyway/sql:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+
+  api:
+    build: ./api
+    image: workshop3/api:1.0.0
+    container_name: api
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${MYSQL_DATABASE}
+      DB_USER: ${MYSQL_USER}
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+    expose:
+      - "5000"
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+    networks:
+      - frontend
+      - backend
+
+  front_admin:
+    build: ./front_admin
+    image: workshop3/front-admin:1.0.0
+    container_name: front_admin
+    restart: unless-stopped
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - frontend
+
+  front_users:
+    build: ./front_users
+    image: workshop3/front-users:1.0.0
+    container_name: front_users
+    restart: unless-stopped
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - frontend
+
+  reverse_proxy:
+    build: ./reverse_proxy
+    image: workshop3/reverse-proxy:1.0.0
+    container_name: reverse_proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      api:
+        condition: service_healthy
+      front_admin:
+        condition: service_healthy
+      front_users:
+        condition: service_healthy
+    networks:
+      - frontend
+
+networks:
+  # Réseau exposé au reverse-proxy : fronts + API
+  frontend:
+  # Réseau de la base : sans accès à internet, injoignable depuis le proxy et les fronts
+  backend:
+    internal: true
+
+volumes:
+  db_data:

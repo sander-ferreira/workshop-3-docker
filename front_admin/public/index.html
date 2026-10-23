@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Administration</title>
+  <!-- Chemins relatifs : le front est servi sous /admin/ par le reverse-proxy -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="conteneur">
+    <div class="entete">
+      <h1>Administration des adresses</h1>
+      <a href="/">Voir la liste publique</a>
+    </div>
+
+    <h2>Ajouter une adresse</h2>
+    <form id="form-adresse">
+      <label for="numero_rue">Numéro</label>
+      <input id="numero_rue" name="numero_rue" required maxlength="10">
+
+      <label for="nom_rue">Rue</label>
+      <input id="nom_rue" name="nom_rue" required maxlength="255">
+
+      <label for="code_postal">Code postal</label>
+      <input id="code_postal" name="code_postal" required pattern="\d{5}" maxlength="5">
+
+      <label for="ville">Ville</label>
+      <input id="ville" name="ville" required maxlength="100">
+
+      <button type="submit">Ajouter</button>
+    </form>
+    <p id="message"></p>
+
+    <h2>Adresses</h2>
+    <table>
+      <thead>
+        <tr><th>ID</th><th>Adresse</th><th>Code postal</th><th>Ville</th><th>Ajoutée le</th><th></th></tr>
+      </thead>
+      <tbody id="liste"></tbody>
+    </table>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
